@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Copy,
   Crown,
@@ -14,6 +14,7 @@ import {
   TrendingUp,
   Undo2,
   X,
+  ArrowLeftRight,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useExecMode } from '@/lib/exec-mode'
@@ -21,37 +22,56 @@ import { useTranslation } from 'react-i18next'
 import { MobilePreview } from '@/components/plans/mobile-preview'
 import type { Feature, BillingCycle, PlanVariant } from '@/components/plans/types'
 import { CYCLE_META } from '@/components/plans/types'
+import { useApi, apiServices } from '@/lib/api'
 
-const planTypes = [
-  'مستقل (Pro)',
-  'شركة (Enterprise)',
-  'مميّز (VIP)',
-  'تجريبي (Trial)',
-  'طالب سينما / أكاديمي (Student)',
-  'استوديو إنتاج (Production House)',
-  'مورد معدات (Equipment Hub)',
-  'باقة مدى الحياة (Lifetime)',
-  'باقة المشروع الواحد (Pay-per-Project)',
+type PlanFeature = {
+  id?: number
+  feature_key: string
+  limit?: number | null
+}
+
+type Plan = {
+  id?: number | null
+  plan_type: 'enterprise' | 'student'
+  tier: string
+  name: string
+  description?: string
+  price: number
+  currency: string
+  is_active: boolean
+  features: PlanFeature[]
+  created_at?: string
+  updated_at?: string
+}
+
+const PLAN_TYPE_OPTIONS = [
+  { value: 'enterprise', label: 'شركة (Enterprise)' },
+  { value: 'student', label: 'طالب سينما / أكاديمي (Student)' },
+]
+
+const FEATURE_KEY_OPTIONS = [
+  { value: 'post_question', label: 'نشر سؤال' },
+  { value: 'post_answer', label: 'نشر إجابة' },
+  { value: 'post_job', label: 'نشر وظيفة' },
+  { value: 'apply_job', label: 'التقديم على وظائف' },
+  { value: 'post_workshop', label: 'نشر ورشة عمل' },
+  { value: 'apply_workshop', label: 'التقديم على ورش عمل' },
+  { value: 'post_item', label: 'نشر عنصر للحجز' },
+  { value: 'request_booking', label: 'طلب حجز' },
+  { value: 'publish_movie', label: 'نشر فيلم' },
+  { value: 'publish_series', label: 'نشر مسلسل' },
+  { value: 'publish_advertise', label: 'نشر إعلان' },
 ]
 
 const badgeOptions = [
   '',
-  'اختيار المحترفين (Pro\u2019s Choice)',
-  'موصى بها للمخرجين (Directors\u2019 Pick)',
+  'اختيار المحترفين (Pro\'s Choice)',
+  'موصى بها للمخرجين (Directors\' Pick)',
   'باقة الانطلاقة (Starter Kit)',
   'عرض لفترة محدودة (Limited Time)',
-  'الأعلى توفيراً (Max Savings)',
+  'الأكثر توفيراً (Max Savings)',
   'حصري للمعدات (Gear Exclusive)',
 ]
-
-// Psychological-pricing accents: the discount % uses a distinct bright color
-// per cycle to draw the eye toward higher-value (longer) commitments.
-const CYCLE_ACCENT: Record<BillingCycle, { name: string; discount: string; crown?: boolean }> = {
-  monthly: { name: 'text-purple-400', discount: '' },
-  quarterly: { name: 'text-foreground', discount: 'text-blue-400' },
-  semiannual: { name: 'text-foreground', discount: 'text-emerald-400' },
-  annual: { name: 'text-foreground', discount: 'text-yellow-400', crown: true },
-}
 
 const landingPages = [
   'الصفحة الرئيسية (Default)',
@@ -74,15 +94,6 @@ const landingPages = [
   'صفحة تحميل التطبيق (App Download Promo)',
   'حملة إعادة الاستهداف (Retargeting Campaign)',
   'صفحة مسابقة آسك كرو (Ask Crew Contest)',
-]
-
-const initialFeatures: Feature[] = [
-  { id: 1, name: 'نشر وظيفة', selected: true, limit: 3, unlimited: false },
-  { id: 2, name: 'نشر فيلم', selected: false, limit: 1, unlimited: false },
-  { id: 3, name: 'طلب حجز', selected: true, limit: 0, unlimited: true },
-  { id: 4, name: 'نشر إعلان', selected: false, limit: 5, unlimited: false },
-  { id: 5, name: 'إدارة فريق', selected: true, limit: 10, unlimited: false },
-  { id: 6, name: 'تقارير وتحليلات', selected: false, limit: 0, unlimited: true },
 ]
 
 function Toggle({
@@ -122,22 +133,28 @@ function Toggle({
 export function PlansEditor() {
   const { execMode } = useExecMode()
   const { t } = useTranslation()
+  const { request } = useApi()
+  const [plans, setPlans] = useState<Plan[]>([])
+  const [currentPlanId, setCurrentPlanId] = useState<number | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+
   const [planName, setPlanName] = useState('باقة المستقل')
-  const [planType, setPlanType] = useState(planTypes[0])
-  const [price, setPrice] = useState('5.0')
-  const [variant, setVariant] = useState<PlanVariant>('A')
-  const [upsell, setUpsell] = useState(true)
-  const [features, setFeatures] = useState<Feature[]>(initialFeatures)
+  const [planType, setPlanType] = useState<'enterprise' | 'student'>('enterprise')
+  const [tier, setTier] = useState('basic')
+  const [price, setPrice] = useState('0.00')
+  const [currency, setCurrency] = useState('KWD')
+  const [isActive, setIsActive] = useState(true)
+  const [description, setDescription] = useState('')
+  const [features, setFeatures] = useState<Feature[]>([])
   const [dragId, setDragId] = useState<number | null>(null)
   const [savedToast, setSavedToast] = useState<string | null>(null)
 
   // Advanced state
   const [newFeatureName, setNewFeatureName] = useState('')
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly')
-  const [planBadge, setPlanBadge] = useState('اختيار المحترفين (Pro\u2019s Choice)')
-  const [isPublished, setIsPublished] = useState(false)
+  const [planBadge, setPlanBadge] = useState('اختيار المحترفين (Pro\'s Choice)')
   const [lastSavedFeatures, setLastSavedFeatures] = useState<Feature[] | null>(null)
-  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving'>('saved')
 
   // Landing page + clone modal
   const [selectedLandingPage, setSelectedLandingPage] = useState(landingPages[0])
@@ -147,19 +164,111 @@ export function PlansEditor() {
 
   const accentText = execMode ? 'text-destructive' : 'text-primary'
 
-  const triggerAutoSave = () => {
-    setSaveStatus('saving')
-    setTimeout(() => setSaveStatus('saved'), 1200)
+  // Fetch all plans on initial load
+  useEffect(() => {
+    async function fetchPlans() {
+      try {
+        const data = await apiServices.fetchPlans()
+        // @ts-expect-error - API returns list of plans
+        setPlans(data)
+        // @ts-expect-error - Select first plan
+        if (data.length > 0) {
+          // @ts-expect-error - Select first plan
+          selectPlan(data[0])
+        }
+      } catch (err) {
+        console.error('Failed to fetch plans:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchPlans()
+  }, [])
+
+  // Select a plan
+  function selectPlan(plan: Plan) {
+    setCurrentPlanId(plan.id ?? null)
+    setPlanName(plan.name)
+    setPlanType(plan.plan_type)
+    setTier(plan.tier)
+    setPrice(plan.price.toString())
+    setCurrency(plan.currency)
+    setIsActive(plan.is_active)
+    setDescription(plan.description || '')
+    setFeatures(
+      plan.features.map((feature, index) => ({
+        id: feature.id ?? index,
+        name: FEATURE_KEY_OPTIONS.find((o) => o.value === feature.feature_key)?.label || feature.feature_key,
+        selected: true,
+        limit: feature.limit ?? 0,
+        unlimited: feature.limit === null || feature.limit === undefined,
+      }))
+    )
+  }
+
+  // Convert current form to Plan object
+  function getCurrentPlan(): Plan {
+    return {
+      id: currentPlanId,
+      plan_type: planType,
+      tier,
+      name: planName,
+      description,
+      price: parseFloat(price),
+      currency,
+      is_active: isActive,
+      features: features.filter((f) => f.selected).map((f) => ({
+        id: f.id,
+        feature_key: FEATURE_KEY_OPTIONS.find((o) => o.label === f.name)?.value || f.name,
+        limit: f.unlimited ? null : f.limit,
+      })),
+    }
+  }
+
+  // Save current plan
+  async function savePlan() {
+    setSaving(true)
+    try {
+      const planData = getCurrentPlan()
+      let savedPlan
+      if (planData.id) {
+        savedPlan = await request(`/plans/${planData.id}/`, 'PUT', planData, { silent: true })
+      } else {
+        savedPlan = await request('/plans/', 'POST', planData, { silent: true })
+      }
+      // Refresh plans list
+      const data = await apiServices.fetchPlans()
+      // @ts-expect-error - API returns list of plans
+      setPlans(data)
+      selectPlan(savedPlan as Plan)
+      setSavedToast('تم حفظ الباقة بنجاح!')
+      setTimeout(() => setSavedToast(null), 2500)
+    } catch (err) {
+      console.error('Failed to save plan:', err)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Create a new plan
+  function createNewPlan() {
+    setCurrentPlanId(null)
+    setPlanName('باقة جديدة')
+    setPlanType('enterprise')
+    setTier('new')
+    setPrice('0.00')
+    setCurrency('KWD')
+    setIsActive(false)
+    setDescription('')
+    setFeatures([])
   }
 
   const toggleFeature = (id: number) => {
     setFeatures((fs) => fs.map((f) => (f.id === id ? { ...f, selected: !f.selected } : f)))
-    triggerAutoSave()
   }
 
   const toggleUnlimited = (id: number) => {
     setFeatures((fs) => fs.map((f) => (f.id === id ? { ...f, unlimited: !f.unlimited } : f)))
-    triggerAutoSave()
   }
 
   const updateLimit = (id: number, value: number) =>
@@ -171,20 +280,17 @@ export function PlansEditor() {
     const newId = features.length > 0 ? Math.max(...features.map((f) => f.id)) + 1 : 1
     setFeatures((fs) => [...fs, { id: newId, name, selected: true, limit: 1, unlimited: false }])
     setNewFeatureName('')
-    triggerAutoSave()
   }
 
   const removeFeature = (id: number) => {
     setLastSavedFeatures(features)
     setFeatures((fs) => fs.filter((f) => f.id !== id))
-    triggerAutoSave()
   }
 
   const handleUndo = () => {
     if (!lastSavedFeatures) return
     setFeatures(lastSavedFeatures)
     setLastSavedFeatures(null)
-    triggerAutoSave()
   }
 
   const handleDrop = (targetId: number) => {
@@ -198,7 +304,6 @@ export function PlansEditor() {
       return next
     })
     setDragId(null)
-    triggerAutoSave()
   }
 
   const showToast = (msg: string) => {
@@ -211,17 +316,80 @@ export function PlansEditor() {
     setIsCloneModalOpen(true)
   }
 
-  const confirmClonePlan = () => {
+  const confirmClonePlan = async () => {
     if (!clonePlanName.trim()) return
-    setPlanName(clonePlanName)
+    const currentPlan = getCurrentPlan()
+    const newPlan = {
+      ...currentPlan,
+      id: undefined,
+      name: clonePlanName,
+      tier: `${currentPlan.tier}_clone_${Date.now()}`,
+    }
+    try {
+      const savedPlan = await request('/plans/', 'POST', newPlan, { silent: true })
+      const data = await apiServices.fetchPlans()
+      // @ts-expect-error - API returns list of plans
+      setPlans(data)
+      selectPlan(savedPlan as Plan)
+    } catch (err) {
+      console.error('Failed to clone plan:', err)
+    }
     setIsCloneModalOpen(false)
-    triggerAutoSave()
     showToast(`تم إنشاء الباقة الجديدة: ${clonePlanName}`)
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-lg text-muted-foreground">جارٍ تحميل الباقات...</div>
+      </div>
+    )
   }
 
   return (
     <div className="mx-auto max-w-7xl">
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_340px]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[250px_1fr_340px]">
+        {/* Plans list sidebar */}
+        <div className="rounded-2xl border border-border glass p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-foreground">الباقات</h2>
+            <button
+              onClick={createNewPlan}
+              className={cn(
+                'flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-bold text-white transition hover:opacity-90',
+                execMode ? 'bg-destructive glow-alert' : 'bg-primary text-primary-foreground glow-brand',
+              )}
+            >
+              <Plus className="h-4 w-4" />
+              جديد
+            </button>
+          </div>
+
+          <div className="space-y-2">
+            {plans.map((plan) => (
+              <button
+                key={plan.id}
+                onClick={() => selectPlan(plan)}
+                className={cn(
+                  'w-full text-right px-3 py-2 rounded-lg transition text-sm',
+                  plan.id === currentPlanId
+                    ? 'bg-primary/20 text-primary font-bold'
+                    : 'hover:bg-white/10 text-muted-foreground',
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  {plan.is_active ? (
+                    <div className="w-2 h-2 rounded-full bg-success" />
+                  ) : (
+                    <div className="w-2 h-2 rounded-full bg-muted-foreground" />
+                  )}
+                  <span>{plan.name}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Editor column */}
         <div className="space-y-6">
           {/* Toolbar */}
@@ -231,77 +399,41 @@ export function PlansEditor() {
               <p className="text-sm text-muted-foreground">{t('plans.subtitle')}</p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
-              {/* Autosave + publish status */}
-              <div className="flex items-center gap-3 border-l border-border pl-3">
-                <span className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground">
-                  <span
-                    className={cn(
-                      'h-1.5 w-1.5 rounded-full',
-                      saveStatus === 'saving' ? 'animate-pulse bg-gold' : 'bg-success',
-                    )}
-                  />
-                  {saveStatus === 'saving' ? 'جاري الحفظ...' : 'تم الحفظ'}
-                </span>
-                <button
-                  onClick={() => {
-                    setIsPublished((v) => !v)
-                    triggerAutoSave()
-                  }}
-                  className={cn(
-                    'rounded-full border px-3 py-1.5 text-xs font-black transition-all',
-                    isPublished
-                      ? 'border-success/50 bg-success/15 text-success'
-                      : 'border-border bg-secondary text-muted-foreground',
-                  )}
-                >
-                  {isPublished ? '● باقة مفعلة (Live)' : '○ مسودة (Draft)'}
-                </button>
-              </div>
+              <button
+                onClick={() => {
+                  setIsActive((v) => !v)
+                }}
+                className={cn(
+                  'rounded-full border px-3 py-1.5 text-xs font-black transition-all',
+                  isActive
+                    ? 'border-success/50 bg-success/15 text-success'
+                    : 'border-border bg-secondary text-muted-foreground',
+                )}
+              >
+                {isActive ? '● باقة مفعلة (Live)' : '○ مسودة (Draft)'}
+              </button>
 
-              <div className="flex items-center gap-2 rounded-xl border border-border bg-white/5 px-3 py-2">
-                <span className="text-xs font-medium text-muted-foreground">{t('plans.version')}</span>
-                <div className="flex rounded-lg border border-border bg-background/60 p-0.5">
-                  {(['A', 'B', 'VIP'] as const).map((v) => (
-                    <button
-                      key={v}
-                      onClick={() => {
-                        setVariant(v)
-                        triggerAutoSave()
-                      }}
-                      className={cn(
-                        'rounded-md px-3 py-1 text-xs font-black transition-all',
-                        variant === v
-                          ? v === 'VIP'
-                            ? 'bg-gold text-background'
-                            : v === 'B'
-                              ? 'bg-accent text-accent-foreground'
-                              : 'bg-primary text-primary-foreground'
-                          : 'text-muted-foreground hover:text-foreground',
-                      )}
-                    >
-                      {v === 'VIP' ? 'VIP' : `نسخة ${v}`}
-                    </button>
-                  ))}
-                </div>
-              </div>
               <button
                 onClick={handleOpenCloneModal}
                 className="flex items-center gap-2 rounded-xl border border-border bg-white/5 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-white/10"
               >
                 <Copy className="h-4 w-4" />
-                نسخ الباقة
+                نسخة
               </button>
               <button
-                onClick={() => showToast('تم حفظ الباقة بنجاح')}
+                onClick={savePlan}
+                disabled={saving}
                 className={cn(
-                  'flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90',
-                  execMode
-                    ? 'bg-destructive glow-alert'
-                    : 'bg-primary text-primary-foreground glow-brand',
+                  'flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold text-white transition hover:opacity-90 disabled:opacity-50',
+                  execMode ? 'bg-destructive glow-alert' : 'bg-primary text-primary-foreground glow-brand',
                 )}
               >
-                <Save className="h-4 w-4" />
-                حفظ
+                {saving ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+                {saving ? 'جارٍ الحفظ...' : 'حفظ'}
               </button>
             </div>
           </div>
@@ -309,52 +441,79 @@ export function PlansEditor() {
           {/* Basic fields */}
           <div className="rounded-2xl border border-border glass p-5">
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-              <Field label={t('plans.planName')}>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-muted-foreground">{t('plans.planName')}</label>
                 <input
                   value={planName}
                   onChange={(e) => setPlanName(e.target.value)}
                   className="input-base"
                   placeholder="مثال: باقة المستقل"
                 />
-              </Field>
-              <Field label={t('plans.planType')}>
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-muted-foreground">نوع الباقة</label>
                 <select
                   value={planType}
-                  onChange={(e) => setPlanType(e.target.value)}
+                  onChange={(e) => setPlanType(e.target.value as 'enterprise' | 'student')}
                   className="input-base"
                 >
-                  {planTypes.map((opt) => (
-                    <option key={opt} value={opt} className="bg-popover">
-                      {opt}
+                  {PLAN_TYPE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value} className="bg-popover">
+                      {opt.label}
                     </option>
                   ))}
                 </select>
-              </Field>
-              <Field label={t('plans.price')}>
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-muted-foreground">المنتج (Tier)</label>
                 <input
-                  type="number"
-                  step="0.5"
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                  className="input-base font-mono"
-                  placeholder="0.0"
+                  value={tier}
+                  onChange={(e) => setTier(e.target.value)}
+                  className="input-base"
+                  placeholder="مثال: basic, silver, gold, diamond"
                 />
-              </Field>
-              <Field label={t('plans.status')}>
-                <div className="flex h-[46px] items-center gap-2 rounded-xl border border-border bg-white/5 px-4">
-                  <span className="h-2 w-2 rounded-full bg-success" />
-                  <span className="text-sm text-foreground">{t('plans.statusActive')}</span>
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-muted-foreground">{t('plans.price')}</label>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                    className="input-base font-mono flex-1"
+                    placeholder="0.00"
+                  />
+                  <select
+                    value={currency}
+                    onChange={(e) => setCurrency(e.target.value)}
+                    className="input-base w-24"
+                  >
+                    <option value="KWD" className="bg-popover">د.ك</option>
+                    <option value="SAR" className="bg-popover">ر.س</option>
+                    <option value="USD" className="bg-popover">$</option>
+                    <option value="EUR" className="bg-popover">€</option>
+                  </select>
                 </div>
-              </Field>
+              </div>
+              <div className="sm:col-span-2">
+                <label className="mb-2 block text-sm font-medium text-muted-foreground">الوصف</label>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="input-base min-h-[100px]"
+                  placeholder="وصف الباقة..."
+                />
+              </div>
             </div>
 
             {/* Billing cycle + marketing badge */}
             <div className="mt-5 grid grid-cols-1 gap-5 rounded-2xl border border-border bg-white/5 p-4 sm:grid-cols-2">
-              <Field label={t('plans.billingCycle')}>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-muted-foreground">{t('plans.billingCycle')}</label>
                 <div className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-[#2a2b36] p-1">
                   {(Object.keys(CYCLE_META) as BillingCycle[]).map((cycle) => {
                     const meta = CYCLE_META[cycle]
-                    const accent = CYCLE_ACCENT[cycle]
                     const isActive = billingCycle === cycle
                     const pct = Math.round(meta.discount * 100)
                     return (
@@ -362,7 +521,6 @@ export function PlansEditor() {
                         key={cycle}
                         onClick={() => {
                           setBillingCycle(cycle)
-                          triggerAutoSave()
                         }}
                         className={cn(
                           'flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition-all',
@@ -371,22 +529,22 @@ export function PlansEditor() {
                             : 'hover:bg-white/5',
                         )}
                       >
-                        <span className={cn(accent.name)}>{t(`plans.${cycle}`, meta.short)}</span>
+                        <span>{t(`plans.${cycle}`, meta.short)}</span>
                         {pct > 0 && (
-                          <span className={cn('font-black', accent.discount)}>{`(-${pct}%)`}</span>
+                          <span className="font-black text-blue-400">{`(-${pct}%)`}</span>
                         )}
-                        {accent.crown && <Crown className="h-3.5 w-3.5 text-yellow-400" />}
+                        {cycle === 'annual' && <Crown className="h-3.5 w-3.5 text-yellow-400" />}
                       </button>
                     )
                   })}
                 </div>
-              </Field>
-              <Field label={t('plans.marketingBadge')}>
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-muted-foreground">{t('plans.marketingBadge')}</label>
                 <select
                   value={planBadge}
                   onChange={(e) => {
                     setPlanBadge(e.target.value)
-                    triggerAutoSave()
                   }}
                   className="input-base"
                 >
@@ -396,7 +554,7 @@ export function PlansEditor() {
                     </option>
                   ))}
                 </select>
-              </Field>
+              </div>
             </div>
           </div>
 
@@ -407,12 +565,12 @@ export function PlansEditor() {
               <h2 className="text-lg font-bold text-foreground">إعدادات صفحة الهبوط</h2>
             </div>
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-              <Field label="نشر الباقة في صفحة">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-muted-foreground">نشر الباقة في صفحة</label>
                 <select
                   value={selectedLandingPage}
                   onChange={(e) => {
                     setSelectedLandingPage(e.target.value)
-                    triggerAutoSave()
                   }}
                   className="input-base"
                 >
@@ -422,15 +580,16 @@ export function PlansEditor() {
                     </option>
                   ))}
                 </select>
-              </Field>
-              <Field label="نص زر الاشتراك (CTA)">
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-muted-foreground">نص زر الاشتراك (CTA)</label>
                 <input
                   value={ctaText}
                   onChange={(e) => setCtaText(e.target.value)}
                   className="input-base"
                   placeholder="مثال: ابدأ الآن مجاناً"
                 />
-              </Field>
+              </div>
             </div>
           </div>
 
@@ -438,10 +597,7 @@ export function PlansEditor() {
           <div
             className={cn(
               'flex items-center justify-between gap-4 rounded-2xl border p-5 transition-colors',
-              upsell && 'glow-gold',
-              execMode
-                ? 'border-destructive/40 bg-destructive/10'
-                : 'border-success/30 bg-success/10',
+              execMode ? 'border-destructive/40 bg-destructive/10' : 'border-success/30 bg-success/10',
             )}
           >
             <div className="flex items-start gap-3">
@@ -469,7 +625,7 @@ export function PlansEditor() {
                 </p>
               </div>
             </div>
-            <Toggle checked={upsell} onChange={() => setUpsell((v) => !v)} variant="accent" />
+            <Toggle checked={true} onChange={() => {}} variant="accent" />
           </div>
 
           {/* Features */}
@@ -478,7 +634,7 @@ export function PlansEditor() {
               <div className="flex items-center gap-2">
                 <Sparkles className={cn('h-5 w-5', accentText)} />
                 <h2 className="text-lg font-bold text-foreground">مميزات الباقة</h2>
-                <span className="text-sm text-muted-foreground">(اسحب لإعادة الترتيب)</span>
+                <span className="text-sm text-muted-foreground">(اختيار من القائمة)</span>
               </div>
               {lastSavedFeatures && (
                 <button
@@ -489,6 +645,32 @@ export function PlansEditor() {
                   تراجع عن الحذف
                 </button>
               )}
+            </div>
+
+            <div className="mb-4">
+              <label className="mb-2 block text-sm font-medium text-muted-foreground">إضافة ميزة</label>
+              <div className="flex gap-2">
+                <select
+                  value=""
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      const selectedOption = FEATURE_KEY_OPTIONS.find((o) => o.value === e.target.value)
+                      if (selectedOption) {
+                        const newId = features.length > 0 ? Math.max(...features.map((f) => f.id)) + 1 : 1
+                        setFeatures((fs) => [...fs, { id: newId, name: selectedOption.label, selected: true, limit: 1, unlimited: false }])
+                      }
+                    }
+                  }}
+                  className="input-base"
+                >
+                  <option value="" disabled className="bg-popover">اختر ميزة...</option>
+                  {FEATURE_KEY_OPTIONS.filter((opt) => !features.some((f) => f.name === opt.label)).map((opt) => (
+                    <option key={opt.value} value={opt.value} className="bg-popover">
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <div className="space-y-3">
@@ -577,27 +759,6 @@ export function PlansEditor() {
                 </div>
               ))}
             </div>
-
-            {/* Add new feature */}
-            <div className="mt-4 flex gap-3">
-              <input
-                value={newFeatureName}
-                onChange={(e) => setNewFeatureName(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && addNewFeature()}
-                placeholder="أضف ميزة جديدة للباقة..."
-                className="input-base flex-1"
-              />
-              <button
-                onClick={addNewFeature}
-                className={cn(
-                  'flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-bold text-white transition hover:opacity-90',
-                  execMode ? 'bg-destructive glow-alert' : 'bg-primary text-primary-foreground glow-brand',
-                )}
-              >
-                <Plus className="h-4 w-4" />
-                إضافة
-              </button>
-            </div>
           </div>
         </div>
 
@@ -605,9 +766,9 @@ export function PlansEditor() {
         <div className="lg:sticky lg:top-24 lg:self-start">
           <MobilePreview
             planName={planName}
-            planType={planType}
+            planType={PLAN_TYPE_OPTIONS.find((o) => o.value === planType)?.label || planType}
             price={price}
-            variant={variant}
+            variant={'A'}
             features={features}
             execMode={execMode}
             badge={planBadge}
@@ -639,7 +800,8 @@ export function PlansEditor() {
             <p className="mb-6 text-sm text-muted-foreground">
               سيتم إنشاء نسخة مطابقة بجميع المميزات والحدود. أدخل اسماً للنسخة الجديدة.
             </p>
-            <Field label="اسم الباقة الجديدة">
+            <div>
+              <label className="mb-2 block text-sm font-medium text-muted-foreground">اسم الباقة الجديدة</label>
               <input
                 autoFocus
                 value={clonePlanName}
@@ -647,7 +809,7 @@ export function PlansEditor() {
                 onKeyDown={(e) => e.key === 'Enter' && confirmClonePlan()}
                 className="input-base"
               />
-            </Field>
+            </div>
             <div className="mt-6 flex gap-3">
               <button
                 onClick={() => setIsCloneModalOpen(false)}

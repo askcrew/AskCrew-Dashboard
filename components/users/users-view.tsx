@@ -54,6 +54,8 @@ type ApiUser = {
   rating_count?: number
 }
 
+type ApiResponse = ApiUser[] | { results: ApiUser[] }
+
 const mapApiUserToCrmUser = (apiUser: ApiUser): CrmUser => {
   const getInitials = (name: string) => {
     return name.charAt(0).toUpperCase()
@@ -123,9 +125,10 @@ export function UsersView() {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await request('/profiles/', 'GET')
+        const response = await request('/profiles/', 'GET') as ApiResponse
         console.log('Users API response:', response)
-        const crmUsers = response.results?.map(mapApiUserToCrmUser) || response.map(mapApiUserToCrmUser)
+        const apiUsers = Array.isArray(response) ? response : response.results
+        const crmUsers = apiUsers?.map(mapApiUserToCrmUser) || []
         setUsers(crmUsers)
       } catch (error) {
         console.error('Failed to fetch users:', error)
