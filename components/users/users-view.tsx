@@ -18,6 +18,7 @@ import {
   Building2,
   IdCard,
   UserSearch,
+  Edit3,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useExecMode } from '@/lib/exec-mode'
@@ -28,9 +29,10 @@ import { TalentProfileContent, talentProfileOf } from '@/components/users/talent
 import { UserDetailsPanel } from '@/components/users/user-details-panel'
 import { DualFlag, PurchasingPowerBanner } from '@/components/shared/geo-widgets'
 import { useModal } from '@/lib/modal'
+import { UserForm } from '@/components/users/UserForm'
 import api from '@/lib/api'
 
-type CrmUser = {
+export type CrmUser = {
   id: number
   name: string
   email: string
@@ -143,24 +145,31 @@ export function UsersView() {
     setTimeout(() => setSentLink((curr) => (curr === id ? null : curr)), 2000)
   }
 
-  const addUser = async () => {
+  const refreshUsers = async () => {
     try {
-      // Create a basic user first
-      const newUser = await api.createUser({
-        email: `user${Date.now()}@example.com`,
-        password: 'temp123456',
-        fullname: 'مستخدم جديد',
-        type: 'viewer',
-        is_active: true,
-      })
-      // Refresh the user list
       const response = await api.fetchUsers() as ApiResponse
       const apiUsers = Array.isArray(response) ? response : response.results
       const crmUsers = apiUsers?.map(mapApiUserToCrmUser) || []
       setUsers(crmUsers)
     } catch (error) {
-      console.error('Failed to add user:', error)
+      console.error('Failed to fetch users:', error)
     }
+  }
+
+  const addUser = () => {
+    openModal({
+      title: 'إضافة مستخدم جديد',
+      content: <UserForm onSuccess={refreshUsers} />,
+      size: 'md',
+    })
+  }
+
+  const editUser = (user: CrmUser) => {
+    openModal({
+      title: 'تعديل المستخدم',
+      content: <UserForm user={user} onSuccess={refreshUsers} />,
+      size: 'md',
+    })
   }
 
   const deleteUser = async (id: number) => {
@@ -338,6 +347,13 @@ export function UsersView() {
                   >
                     <UserSearch className="h-3.5 w-3.5" />
                     الملف الكامل
+                  </button>
+                  <button
+                    onClick={() => editUser(u)}
+                    className="flex items-center justify-center rounded-lg border border-border bg-white/5 p-2 text-muted-foreground transition hover:bg-white/10 hover:text-foreground shrink-0"
+                    aria-label="تعديل"
+                  >
+                    <Edit3 className="h-3.5 w-3.5" />
                   </button>
                   <button
                     onClick={() =>
