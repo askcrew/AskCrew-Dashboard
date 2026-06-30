@@ -39,7 +39,7 @@ export function useModal() {
   return ctx
 }
 
-const sizeMap = { sm: 'max-w-sm', md: 'max-w-lg', lg: 'max-w-2xl' }
+const sizeMap = { sm: 'max-w-[400px]', md: 'max-w-[600px]', lg: 'max-w-[800px]' }
 
 export function ModalProvider({ children }: { children: ReactNode }) {
   const [modal, setModal] = useState<ModalContent | null>(null)
@@ -70,7 +70,7 @@ export function ModalProvider({ children }: { children: ReactNode }) {
           onClick={closeModal}
         >
           <div
-            className={`glass w-full ${sizeMap[modal.size ?? 'md']} rounded-2xl border border-border p-6`}
+            className={`glass w-full ${sizeMap[modal.size ?? 'md']} max-h-[90vh] overflow-y-auto rounded-2xl border border-border p-6`}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-4 flex items-center justify-between gap-4">
@@ -94,7 +94,7 @@ export function ModalProvider({ children }: { children: ReactNode }) {
           onClick={() => resolveConfirm(false)}
         >
           <div
-            className="glass w-full max-w-sm rounded-2xl border border-border p-6"
+            className="glass w-full max-w-[400px] rounded-2xl border border-border p-4 sm:p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="mb-2 text-lg font-black text-foreground">

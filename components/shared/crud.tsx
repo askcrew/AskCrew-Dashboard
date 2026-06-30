@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { MoreVertical, Pencil, Trash2, Archive, Plus } from 'lucide-react'
+import { useState } from 'react'
+import { Pencil, Trash2, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useModal } from '@/lib/modal'
 import { useToast } from '@/lib/toast'
@@ -55,10 +55,10 @@ function EntityForm({
   const requiredMissing = fields.some((f) => f.type !== 'select' && !String(values[f.key] ?? '').trim())
 
   return (
-    <div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <div className="max-h-[60vh] overflow-y-auto">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {fields.map((f) => (
-          <div key={f.key} className={cn(f.full || f.type === 'textarea' ? 'sm:col-span-2' : '')}>
+          <div key={f.key} className={cn(f.full || f.type === 'textarea' ? 'md:col-span-2' : '')}>
             <label className="mb-2 block text-sm font-medium text-muted-foreground">{f.label}</label>
             {f.type === 'select' ? (
               <select value={values[f.key]} onChange={(e) => set(f.key, e.target.value)} className="input-base">
@@ -87,7 +87,7 @@ function EntityForm({
           </div>
         ))}
       </div>
-      <div className="mt-8 flex gap-3">
+      <div className="mt-8 flex flex-col gap-3 sm:flex-row">
         <button
           onClick={closeModal}
           className="flex-1 rounded-xl border border-border bg-white/5 py-3 text-sm font-bold text-foreground transition hover:bg-white/10"
@@ -167,8 +167,6 @@ export function RowActions({
   fields,
   onEdited,
   onDeleted,
-  onArchived,
-  archivable = true,
 }: {
   /** Singular noun, e.g. "الحجز". */
   entityLabel: string
@@ -178,30 +176,11 @@ export function RowActions({
   fields?: CrudField[]
   onEdited?: (values: Record<string, string>) => void
   onDeleted?: () => void
-  onArchived?: () => void
-  archivable?: boolean
 }) {
   const { openModal, closeModal, confirm } = useModal()
   const { toast } = useToast()
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!open) return
-    const onDoc = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
-    }
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
-    document.addEventListener('mousedown', onDoc)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('mousedown', onDoc)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [open])
 
   const handleEdit = () => {
-    setOpen(false)
     openModal({
       title: `تعديل ${entityLabel} (${entityName})`,
       content: (
@@ -219,21 +198,7 @@ export function RowActions({
     })
   }
 
-  const handleArchive = async () => {
-    setOpen(false)
-    const ok = await confirm({
-      title: `أرشفة ${entityLabel}`,
-      message: `سيتم نقل "${entityName}" إلى الأرشيف ويمكن استرجاعه لاحقاً. هل تريد المتابعة؟`,
-      confirmLabel: 'أرشفة',
-    })
-    if (!ok) return
-    // TODO(backend): PATCH /api/<resource>/:id { archived: true }
-    onArchived?.()
-    toast.success(`تمت أرشفة ${entityLabel} (${entityName})`)
-  }
-
   const handleDelete = async () => {
-    setOpen(false)
     const ok = await confirm({
       title: `حذف ${entityLabel}`,
       message: `سيتم حذف "${entityName}" نهائياً. لا يمكن التراجع عن هذا الإجراء.`,
@@ -247,53 +212,23 @@ export function RowActions({
   }
 
   return (
-    <div className="relative inline-block text-right" ref={ref}>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label={`إجراءات ${entityName}`}
-        className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-muted-foreground transition hover:bg-white/10 hover:text-foreground"
-      >
-        <MoreVertical className="h-4 w-4" />
-      </button>
-
-      {open && (
-        <div
-          role="menu"
-          className="glass absolute left-0 top-full z-50 mt-1 w-44 overflow-hidden rounded-xl border border-border py-1 shadow-2xl"
+    <div className="flex items-center gap-2">
+      {fields && fields.length > 0 && (
+        <button
+          onClick={handleEdit}
+          className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-muted-foreground transition hover:bg-white/10 hover:text-foreground"
+          aria-label="تعديل"
         >
-          {fields && fields.length > 0 && (
-            <button
-              role="menuitem"
-              onClick={handleEdit}
-              className="flex w-full items-center gap-2.5 px-4 py-2.5 text-right text-sm text-foreground transition hover:bg-white/10"
-            >
-              <Pencil className="h-4 w-4 text-primary" />
-              تعديل
-            </button>
-          )}
-          {archivable && (
-            <button
-              role="menuitem"
-              onClick={handleArchive}
-              className="flex w-full items-center gap-2.5 px-4 py-2.5 text-right text-sm text-foreground transition hover:bg-white/10"
-            >
-              <Archive className="h-4 w-4 text-warning" />
-              أرشفة
-            </button>
-          )}
-          <button
-            role="menuitem"
-            onClick={handleDelete}
-            className="flex w-full items-center gap-2.5 px-4 py-2.5 text-right text-sm text-destructive transition hover:bg-destructive/15"
-          >
-            <Trash2 className="h-4 w-4" />
-            حذف
-          </button>
-        </div>
+          <Pencil className="h-4 w-4" />
+        </button>
       )}
+      <button
+        onClick={handleDelete}
+        className="flex h-8 w-8 items-center justify-center rounded-lg border border-destructive/30 bg-destructive/10 text-destructive transition hover:bg-destructive hover:text-white"
+        aria-label="حذف"
+      >
+        <Trash2 className="h-4 w-4" />
+      </button>
     </div>
   )
 }

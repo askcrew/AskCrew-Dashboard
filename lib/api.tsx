@@ -321,6 +321,20 @@ export const apiServices = {
   updateJob: (id: number, data: unknown) => apiRequest(`/community/jobs/${id}/`, 'PUT', data),
   deleteJob: (id: number) => apiRequest(`/community/jobs/${id}/`, 'DELETE'),
 
+  // Workshops
+  fetchWorkshops: () => apiRequest('/workshop/', 'GET'),
+  fetchWorkshop: (id: number) => apiRequest(`/workshop/${id}/`, 'GET'),
+  createWorkshop: (data: unknown) => apiRequest('/workshop/', 'POST', data),
+  updateWorkshop: (id: number, data: unknown) => apiRequest(`/workshop/${id}/`, 'PUT', data),
+  deleteWorkshop: (id: number) => apiRequest(`/workshop/${id}/`, 'DELETE'),
+
+  // Workshop Registrations
+  fetchWorkshopRegistrations: (workshopId?: number) => apiRequest(workshopId ? `/workshop/registrations/?workshop=${workshopId}` : '/workshop/registrations/', 'GET'),
+  fetchWorkshopRegistration: (id: number) => apiRequest(`/workshop/registrations/${id}/`, 'GET'),
+  createWorkshopRegistration: (data: unknown) => apiRequest('/workshop/registrations/', 'POST', data),
+  updateWorkshopRegistration: (id: number, data: unknown) => apiRequest(`/workshop/registrations/${id}/`, 'PUT', data),
+  deleteWorkshopRegistration: (id: number) => apiRequest(`/workshop/registrations/${id}/`, 'DELETE'),
+
   // Community - Job Applications
   fetchJobApplications: () => apiRequest('/community/applications/', 'GET'),
   fetchJobApplication: (id: number) => apiRequest(`/community/applications/${id}/`, 'GET'),

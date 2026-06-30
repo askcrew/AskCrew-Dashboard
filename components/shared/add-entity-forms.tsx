@@ -28,9 +28,9 @@ function FormShell({
 }) {
   const { closeModal } = useModal()
   return (
-    <div>
+    <div className="w-full">
       <div className="space-y-4">{children}</div>
-      <div className="mt-8 flex gap-3">
+      <div className="mt-8 flex flex-col gap-3 sm:flex-row">
         <button
           onClick={closeModal}
           className="flex-1 rounded-xl border border-border bg-white/5 py-3 text-sm font-bold text-foreground transition hover:bg-white/10"
@@ -144,41 +144,72 @@ export function ChatRoomForm() {
 export function WorkshopForm() {
   const { closeModal } = useModal()
   const { toast } = useToast()
-  const [title, setTitle] = useState('')
-  const [date, setDate] = useState('')
-  const [time, setTime] = useState('')
-  const [trainer, setTrainer] = useState('')
-  const [link, setLink] = useState('')
+  const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
+  const [coverImage, setCoverImage] = useState('')
+  const [specialization, setSpecialization] = useState('')
+  const [location, setLocation] = useState('')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [numberOfParticipants, setNumberOfParticipants] = useState('')
+  const [isActive, setIsActive] = useState('true')
+  const [isApproved, setIsApproved] = useState('false')
 
   const save = () => {
     // TODO: BACKEND — schedule the workshop and notify subscribers.
-    toast.success(`تم جدولة الورشة: ${title}`)
+    toast.success(`تم جدولة الورشة: ${name}`)
     closeModal()
   }
 
   return (
-    <FormShell onSave={save} saveLabel="جدولة الورشة" disabled={!title.trim()}>
-      <div>
-        <FieldLabel>عنوان الورشة</FieldLabel>
-        <input value={title} onChange={(e) => setTitle(e.target.value)} className="input-base" placeholder="مثال: أساسيات الإخراج" />
-      </div>
-      <div className="flex gap-4">
-        <div className="flex-1">
-          <FieldLabel>التاريخ</FieldLabel>
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="input-base" />
+    <FormShell onSave={save} saveLabel="جدولة الورشة" disabled={!name.trim()}>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="md:col-span-2">
+          <FieldLabel>اسم الورشة</FieldLabel>
+          <input value={name} onChange={(e) => setName(e.target.value)} className="input-base" placeholder="مثال: أساسيات الإخراج" />
         </div>
-        <div className="flex-1">
-          <FieldLabel>الوقت</FieldLabel>
-          <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="input-base" />
+        <div className="md:col-span-2">
+          <FieldLabel>الوصف</FieldLabel>
+          <textarea value={description} onChange={(e) => setDescription(e.target.value)} className="input-base h-24 resize-none" placeholder="وصف الورشة" />
         </div>
-      </div>
-      <div>
-        <FieldLabel>اسم المحاضر</FieldLabel>
-        <input value={trainer} onChange={(e) => setTrainer(e.target.value)} className="input-base" placeholder="اسم المحاضر..." />
-      </div>
-      <div>
-        <FieldLabel>رابط الورشة</FieldLabel>
-        <input type="url" dir="ltr" value={link} onChange={(e) => setLink(e.target.value)} className="input-base text-left" placeholder="Zoom / Google Meet link" />
+        <div className="md:col-span-2">
+          <FieldLabel>صورة الغلاف (URL)</FieldLabel>
+          <input type="url" dir="ltr" value={coverImage} onChange={(e) => setCoverImage(e.target.value)} className="input-base text-left" placeholder="https://example.com/image.jpg" />
+        </div>
+        <div>
+          <FieldLabel>التخصص</FieldLabel>
+          <input value={specialization} onChange={(e) => setSpecialization(e.target.value)} className="input-base" placeholder="مثال: السينما" />
+        </div>
+        <div>
+          <FieldLabel>الموقع</FieldLabel>
+          <input value={location} onChange={(e) => setLocation(e.target.value)} className="input-base" placeholder="مدينة الكويت" />
+        </div>
+        <div>
+          <FieldLabel>تاريخ البدء</FieldLabel>
+          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="input-base" />
+        </div>
+        <div>
+          <FieldLabel>تاريخ الانتهاء</FieldLabel>
+          <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="input-base" />
+        </div>
+        <div>
+          <FieldLabel>عدد المشاركين</FieldLabel>
+          <input type="number" value={numberOfParticipants} onChange={(e) => setNumberOfParticipants(e.target.value)} className="input-base" placeholder="50" />
+        </div>
+        <div>
+          <FieldLabel>نشط</FieldLabel>
+          <select value={isActive} onChange={(e) => setIsActive(e.target.value)} className="input-base">
+            <option value="true" className="bg-popover">نعم</option>
+            <option value="false" className="bg-popover">لا</option>
+          </select>
+        </div>
+        <div>
+          <FieldLabel>معتمد</FieldLabel>
+          <select value={isApproved} onChange={(e) => setIsApproved(e.target.value)} className="input-base">
+            <option value="true" className="bg-popover">نعم</option>
+            <option value="false" className="bg-popover">لا</option>
+          </select>
+        </div>
       </div>
     </FormShell>
   )
@@ -188,33 +219,52 @@ export function WorkshopForm() {
 export function JobForm() {
   const { closeModal } = useModal()
   const { toast } = useToast()
-  const [title, setTitle] = useState('')
-  const [type, setType] = useState('freelance')
-  const [desc, setDesc] = useState('')
+  const [jobTitle, setJobTitle] = useState('')
+  const [companyName, setCompanyName] = useState('')
+  const [image, setImage] = useState('')
+  const [about, setAbout] = useState('')
+  const [isActive, setIsActive] = useState('true')
+  const [isApproved, setIsApproved] = useState('false')
 
   const save = () => {
     // TODO: BACKEND — publish the job posting to the careers board.
-    toast.success(`تم نشر الوظيفة: ${title}`)
+    toast.success(`تم نشر الوظيفة: ${jobTitle}`)
     closeModal()
   }
 
   return (
-    <FormShell onSave={save} saveLabel="نشر الوظيفة" saveClass="bg-success text-white" disabled={!title.trim()}>
-      <div>
-        <FieldLabel>عنوان الوظيفة</FieldLabel>
-        <input value={title} onChange={(e) => setTitle(e.target.value)} className="input-base" placeholder="مثال: مطلوب محرر فيديو" />
-      </div>
-      <div>
-        <FieldLabel>نوع التعاقد</FieldLabel>
-        <select value={type} onChange={(e) => setType(e.target.value)} className="input-base">
-          <option value="freelance" className="bg-popover">عمل حر (Freelance)</option>
-          <option value="contract" className="bg-popover">عقد مؤقت</option>
-          <option value="fulltime" className="bg-popover">دوام كامل</option>
-        </select>
-      </div>
-      <div>
-        <FieldLabel>وصف الوظيفة</FieldLabel>
-        <textarea value={desc} onChange={(e) => setDesc(e.target.value)} className="input-base h-24 resize-none" placeholder="المهام والمتطلبات..." />
+    <FormShell onSave={save} saveLabel="نشر الوظيفة" saveClass="bg-success text-white" disabled={!jobTitle.trim()}>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="md:col-span-2">
+          <FieldLabel>المسمى الوظيفي</FieldLabel>
+          <input value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} className="input-base" placeholder="مثال: مطلوب محرر فيديو" />
+        </div>
+        <div className="md:col-span-2">
+          <FieldLabel>اسم الشركة</FieldLabel>
+          <input value={companyName} onChange={(e) => setCompanyName(e.target.value)} className="input-base" placeholder="شركة الإبداع" />
+        </div>
+        <div className="md:col-span-2">
+          <FieldLabel>صورة الوظيفة (URL)</FieldLabel>
+          <input type="url" dir="ltr" value={image} onChange={(e) => setImage(e.target.value)} className="input-base text-left" placeholder="https://example.com/image.jpg" />
+        </div>
+        <div className="md:col-span-2">
+          <FieldLabel>عن الوظيفة</FieldLabel>
+          <textarea value={about} onChange={(e) => setAbout(e.target.value)} className="input-base h-24 resize-none" placeholder="وصف الوظيفة" />
+        </div>
+        <div>
+          <FieldLabel>نشط</FieldLabel>
+          <select value={isActive} onChange={(e) => setIsActive(e.target.value)} className="input-base">
+            <option value="true" className="bg-popover">نعم</option>
+            <option value="false" className="bg-popover">لا</option>
+          </select>
+        </div>
+        <div>
+          <FieldLabel>معتمد</FieldLabel>
+          <select value={isApproved} onChange={(e) => setIsApproved(e.target.value)} className="input-base">
+            <option value="true" className="bg-popover">نعم</option>
+            <option value="false" className="bg-popover">لا</option>
+          </select>
+        </div>
       </div>
     </FormShell>
   )
