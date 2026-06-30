@@ -169,12 +169,10 @@ export function PlansEditor() {
     async function fetchPlans() {
       try {
         const data = await apiServices.fetchPlans()
-        // @ts-expect-error - API returns list of plans
-        setPlans(data)
-        // @ts-expect-error - Select first plan
-        if (data.length > 0) {
-          // @ts-expect-error - Select first plan
-          selectPlan(data[0])
+        const plansList = Array.isArray(data) ? data : (data as any)?.results || []
+        setPlans(plansList)
+        if (plansList.length > 0) {
+          selectPlan(plansList[0])
         }
       } catch (err) {
         console.error('Failed to fetch plans:', err)
@@ -232,14 +230,14 @@ export function PlansEditor() {
       const planData = getCurrentPlan()
       let savedPlan
       if (planData.id) {
-        savedPlan = await request(`/plans/${planData.id}/`, 'PUT', planData, { silent: true })
+        savedPlan = await apiServices.updatePlan(planData.id, planData)
       } else {
-        savedPlan = await request('/plans/', 'POST', planData, { silent: true })
+        savedPlan = await apiServices.createPlan(planData)
       }
       // Refresh plans list
       const data = await apiServices.fetchPlans()
-      // @ts-expect-error - API returns list of plans
-      setPlans(data)
+      const plansList = Array.isArray(data) ? data : (data as any)?.results || []
+      setPlans(plansList)
       selectPlan(savedPlan as Plan)
       setSavedToast('تم حفظ الباقة بنجاح!')
       setTimeout(() => setSavedToast(null), 2500)
@@ -326,10 +324,10 @@ export function PlansEditor() {
       tier: `${currentPlan.tier}_clone_${Date.now()}`,
     }
     try {
-      const savedPlan = await request('/plans/', 'POST', newPlan, { silent: true })
+      const savedPlan = await apiServices.createPlan(newPlan)
       const data = await apiServices.fetchPlans()
-      // @ts-expect-error - API returns list of plans
-      setPlans(data)
+      const plansList = Array.isArray(data) ? data : (data as any)?.results || []
+      setPlans(plansList)
       selectPlan(savedPlan as Plan)
     } catch (err) {
       console.error('Failed to clone plan:', err)
