@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useState, type ReactNode } from 'react'
 import { CONFIG } from '@/lib/config'
-import { getAuthToken } from '@/lib/auth'
+import { getAuthToken, clearAuthToken } from '@/lib/auth'
 import { recordApiCall } from '@/lib/dev-bus'
 import { getMockMode } from '@/lib/mock-mode'
 
@@ -73,21 +73,7 @@ export async function apiRequest<T = unknown>(
 
   const started = performance.now()
 
-  // ---- MOCK MODE (toggled at runtime via the header "Mock vs Live" switch) --
-  if (getMockMode()) {
-    await new Promise((res) => setTimeout(res, CONFIG.MOCK_DELAY))
-    const mock = { success: true, mock: true, endpoint, method } as unknown as T
-    recordApiCall({
-      endpoint,
-      method,
-      status: 200,
-      ms: Math.round(performance.now() - started),
-      ok: true,
-      response: mock,
-    })
-    return mock
-  }
-
+  // ---- DISABLED MOCK MODE - ALWAYS USE LIVE API ----
   // ---- PRODUCTION MODE ------------------------------------------------------
   try {
     const response = await fetch(fullUrl, {
@@ -110,9 +96,14 @@ export async function apiRequest<T = unknown>(
       response: data,
     })
     if (!response.ok) {
+      // Handle token expired case
+      if (response.status === 401) {
+        console.warn('Token expired or invalid - clearing auth token')
+        clearAuthToken()
+      }
       // Try to get error message from response
-      const errorData = data as { error?: string; message?: string }
-      const errorMessage = errorData?.error || errorData?.message || `فشل في الاتصال بالخادم (${response.status})`
+      const errorData = data as { error?: string; message?: string; detail?: string }
+      const errorMessage = errorData?.detail || errorData?.error || errorData?.message || `فشل في الاتصال بالخادم (${response.status})`
       throw new Error(errorMessage)
     }
     return data as T

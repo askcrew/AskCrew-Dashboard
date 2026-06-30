@@ -19,11 +19,28 @@ export function DashboardGuard({ children }: { children: ReactNode }) {
   const [allowed, setAllowed] = useState(false)
 
   useEffect(() => {
-    if (isAuthenticated()) {
-      setAllowed(true)
-    } else {
-      // Replace (not push) so the protected URL is not left in history.
-      router.replace('/')
+    function checkAuth() {
+      if (isAuthenticated()) {
+        setAllowed(true)
+      } else {
+        // Replace (not push) so the protected URL is not left in history.
+        router.replace('/')
+      }
+    }
+    
+    // Check immediately
+    checkAuth()
+    
+    // Also check whenever localStorage changes (e.g., token cleared)
+    const handleStorageChange = () => checkAuth()
+    window.addEventListener('storage', handleStorageChange)
+    
+    // Also check periodically to be safe
+    const interval = setInterval(checkAuth, 1000)
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      clearInterval(interval)
     }
   }, [router])
 

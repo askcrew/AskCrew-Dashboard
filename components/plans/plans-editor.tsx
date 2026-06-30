@@ -171,7 +171,20 @@ export function PlansEditor() {
         console.log('Fetching plans...')
         const data = await apiServices.fetchPlans()
         console.log('API Response:', data)
-        const plansList = Array.isArray(data) ? data : (data as any)?.results || []
+        
+        // Handle different response formats: array, paginated object with results
+        let plansList: any[] = []
+        if (Array.isArray(data)) {
+          plansList = data
+        } else if (data && typeof data === 'object') {
+          if ('results' in data && Array.isArray(data.results)) {
+            plansList = data.results
+          } else {
+            // If it's a single object (not expected), wrap it in array
+            plansList = [data]
+          }
+        }
+        
         console.log('Plans list:', plansList)
         setPlans(plansList)
         if (plansList.length > 0) {
@@ -188,18 +201,19 @@ export function PlansEditor() {
 
   // Select a plan
   function selectPlan(plan: Plan) {
+    console.log('selectPlan called with:', plan)
     setCurrentPlanId(plan.id ?? null)
-    setPlanName(plan.name)
-    setPlanType(plan.plan_type)
-    setTier(plan.tier)
-    setPrice(plan.price.toString())
-    setCurrency(plan.currency)
-    setIsActive(plan.is_active)
+    setPlanName(plan.name || '')
+    setPlanType(plan.plan_type || 'enterprise')
+    setTier(plan.tier || '')
+    setPrice(plan.price?.toString() || '0.00')
+    setCurrency(plan.currency || 'KWD')
+    setIsActive(plan.is_active ?? true)
     setDescription(plan.description || '')
     setFeatures(
-      plan.features.map((feature, index) => ({
+      (plan.features || []).map((feature, index) => ({
         id: feature.id ?? index,
-        name: FEATURE_KEY_OPTIONS.find((o) => o.value === feature.feature_key)?.label || feature.feature_key,
+        name: FEATURE_KEY_OPTIONS.find((o) => o.value === feature.feature_key)?.label || feature.feature_key || '',
         selected: true,
         limit: feature.limit ?? 0,
         unlimited: feature.limit === null || feature.limit === undefined,
@@ -209,13 +223,14 @@ export function PlansEditor() {
 
   // Convert current form to Plan object
   function getCurrentPlan(): Plan {
+    const parsedPrice = parseFloat(price)
     return {
       id: currentPlanId,
       plan_type: planType,
       tier,
       name: planName,
       description,
-      price: parseFloat(price),
+      price: isNaN(parsedPrice) ? 0 : parsedPrice,
       currency,
       is_active: isActive,
       features: features.filter((f) => f.selected).map((f) => ({
@@ -367,9 +382,9 @@ export function PlansEditor() {
           </div>
 
           <div className="space-y-2">
-            {plans.map((plan) => (
+            {plans.map((plan, index) => (
               <button
-                key={plan.id}
+                key={plan.id ?? `plan-${index}`}
                 onClick={() => selectPlan(plan)}
                 className={cn(
                   'w-full text-right px-3 py-2 rounded-lg transition text-sm',

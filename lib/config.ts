@@ -1,11 +1,11 @@
 // ============================================================================
 // ENVIRONMENT CONFIGURATION
 // ============================================================================
-// Use Next.js API proxy to avoid CORS issues
+// Direct API connection for testing
 // ============================================================================
 
 export const CONFIG = {
-  API_BASE_URL: '/api/proxy',
+  API_BASE_URL: 'https://admin.askcrews.com/api/v1',
   ENABLE_MOCK_DATA: false,
   // Simulated network latency (ms) used only while ENABLE_MOCK_DATA is true
   MOCK_DELAY: 800,
