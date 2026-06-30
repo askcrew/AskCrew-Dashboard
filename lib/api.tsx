@@ -181,6 +181,21 @@ export const apiServices = {
   login: (email: string, password: string) =>
     apiRequest<{ tokens: { access: string }; user: any }>('/auth/login', 'POST', { email, password }),
 
+  // GET /plans → returns all plans
+  fetchPlans: () => apiRequest('/plans/', 'GET'),
+
+  // GET /plans/:id → returns single plan
+  fetchPlan: (id: string) => apiRequest(`/plans/${id}/`, 'GET'),
+
+  // POST /plans/ → create plan
+  createPlan: (data: unknown) => apiRequest('/plans/', 'POST', data),
+
+  // PUT /plans/:id → update plan
+  updatePlan: (id: string | number, data: unknown) => apiRequest(`/plans/${id}/`, 'PUT', data),
+
+  // DELETE /plans/:id → delete plan
+  deletePlan: (id: string | number) => apiRequest(`/plans/${id}/`, 'DELETE'),
+
   // TODO: BACKEND - GET /analytics/summary → { mrr, churnRate, activeUsers }
   fetchAnalytics: () =>
     apiRequest<{ mrr: string; churnRate: string; activeUsers: string }>('/analytics/summary', 'GET'),
@@ -211,7 +226,7 @@ export const apiServices = {
   createStaff: (data: unknown) => apiRequest('/staff', 'POST', data),
 
   // TODO: BACKEND - DELETE /staff/:id
-  deleteStaff: (userId: number) => apiRequest(`/staff/${userId}`, 'DELETE'),
+  deleteStaff: (userId: number) => apiRequest(`/staff/${userId}/`, 'DELETE'),
 
   // TODO: BACKEND - POST /auth/force-logout
   forceLogoutUser: (userId: number) => apiRequest('/auth/force-logout', 'POST', { userId }),

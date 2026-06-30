@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const BACKEND_URL = 'https://admin.askcrews.com/api/v1'
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'https://admin.askcrews.com/api/v1'
 
 export async function GET(request: NextRequest) {
   return handleRequest(request, 'GET')
