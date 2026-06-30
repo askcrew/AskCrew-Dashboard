@@ -281,6 +281,53 @@ export const apiServices = {
   updateContentRating: (id: number, data: unknown) => apiRequest(`/content/ratings/${id}/`, 'PUT', data),
   deleteContentRating: (id: number) => apiRequest(`/content/ratings/${id}/`, 'DELETE'),
 
+  // Chat - Admin Endpoints
+  fetchChatRooms: () => apiRequest('/chat/admin/rooms/', 'GET'),
+  fetchChatRoom: (id: number) => apiRequest(`/chat/admin/rooms/${id}/`, 'GET'),
+  createChatRoom: (data: unknown) => apiRequest('/chat/admin/rooms/', 'POST', data),
+  updateChatRoom: (id: number, data: unknown) => apiRequest(`/chat/admin/rooms/${id}/`, 'PUT', data),
+  deleteChatRoom: (id: number) => apiRequest(`/chat/admin/rooms/${id}/`, 'DELETE'),
+
+  fetchMessages: () => apiRequest('/chat/admin/messages/', 'GET'),
+  fetchMessage: (id: number) => apiRequest(`/chat/admin/messages/${id}/`, 'GET'),
+  createMessage: (data: unknown) => apiRequest('/chat/admin/messages/', 'POST', data),
+  updateMessage: (id: number, data: unknown) => apiRequest(`/chat/admin/messages/${id}/`, 'PUT', data),
+  deleteMessage: (id: number) => apiRequest(`/chat/admin/messages/${id}/`, 'DELETE'),
+
+  fetchMessageFiles: () => apiRequest('/chat/admin/message-files/', 'GET'),
+  fetchMessageFile: (id: number) => apiRequest(`/chat/admin/message-files/${id}/`, 'GET'),
+  createMessageFile: (data: unknown) => apiRequest('/chat/admin/message-files/', 'POST', data),
+  updateMessageFile: (id: number, data: unknown) => apiRequest(`/chat/admin/message-files/${id}/`, 'PUT', data),
+  deleteMessageFile: (id: number) => apiRequest(`/chat/admin/message-files/${id}/`, 'DELETE'),
+
+  // Community - Questions
+  fetchQuestions: () => apiRequest('/community/questions/', 'GET'),
+  fetchQuestion: (id: number) => apiRequest(`/community/questions/${id}/`, 'GET'),
+  createQuestion: (data: unknown) => apiRequest('/community/questions/', 'POST', data),
+  updateQuestion: (id: number, data: unknown) => apiRequest(`/community/questions/${id}/`, 'PUT', data),
+  deleteQuestion: (id: number) => apiRequest(`/community/questions/${id}/`, 'DELETE'),
+
+  // Community - Answers
+  fetchAnswers: () => apiRequest('/community/answers/', 'GET'),
+  fetchAnswer: (id: number) => apiRequest(`/community/answers/${id}/`, 'GET'),
+  createAnswer: (data: unknown) => apiRequest('/community/answers/', 'POST', data),
+  updateAnswer: (id: number, data: unknown) => apiRequest(`/community/answers/${id}/`, 'PUT', data),
+  deleteAnswer: (id: number) => apiRequest(`/community/answers/${id}/`, 'DELETE'),
+
+  // Community - Jobs
+  fetchJobs: () => apiRequest('/community/jobs/', 'GET'),
+  fetchJob: (id: number) => apiRequest(`/community/jobs/${id}/`, 'GET'),
+  createJob: (data: unknown) => apiRequest('/community/jobs/', 'POST', data),
+  updateJob: (id: number, data: unknown) => apiRequest(`/community/jobs/${id}/`, 'PUT', data),
+  deleteJob: (id: number) => apiRequest(`/community/jobs/${id}/`, 'DELETE'),
+
+  // Community - Job Applications
+  fetchJobApplications: () => apiRequest('/community/applications/', 'GET'),
+  fetchJobApplication: (id: number) => apiRequest(`/community/applications/${id}/`, 'GET'),
+  createJobApplication: (data: unknown) => apiRequest('/community/applications/', 'POST', data),
+  updateJobApplication: (id: number, data: unknown) => apiRequest(`/community/applications/${id}/`, 'PUT', data),
+  deleteJobApplication: (id: number) => apiRequest(`/community/applications/${id}/`, 'DELETE'),
+
   // Favorites
   fetchFavorites: () => apiRequest('/content/favorites/', 'GET'),
   addFavorite: (data: unknown) => apiRequest('/content/favorites/add/', 'POST', data),
